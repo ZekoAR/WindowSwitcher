@@ -1,0 +1,11 @@
+bin/
+obj/
+dist/
+.vs/
+*.user
+
+# Per-machine agent permissions.
+.claude/settings.local.json
+
+# Agent scratch output - see AGENTS.md, "Scratch output lives in one ignored folder".
+.gate/
