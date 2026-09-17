@@ -162,3 +162,7 @@ do not support Native AOT.
 - With the environment variable `WINDOWSWITCHER_GATE_LAYOUT=<file>` set, the app writes the popup's and
   tiles' screen positions to that file each time the popup opens. The gate uses this.
 - `tools\make-icon.ps1` redraws `src\WindowSwitcher\WindowSwitcher.ico`.
+
+## License
+
+MIT - see [LICENSE](LICENSE).
