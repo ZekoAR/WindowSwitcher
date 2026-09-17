@@ -1,0 +1,83 @@
+# Builds WindowSwitcher and its per-user installer with build.cmd --setup.
+#
+# - Pushing a tag vX.Y.Z (for example `git tag v1.2.0` then `git push origin v1.2.0`) stamps X.Y.Z on
+#   the exe and the installer and publishes a GitHub release with both. Running it again for the same
+#   tag replaces the release's files.
+# - Running it by hand (Actions > Release > Run workflow) only builds, with the version in
+#   WindowSwitcher.csproj, and keeps the files as a workflow artifact.
+
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    # Windows Server 2025 has Visual Studio with the C++ tools (Native AOT links with them) and
+    # Inno Setup 6.
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Version
+        id: version
+        shell: pwsh
+        run: |
+          $arg = ''
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+)$') {
+              throw "Tag '$env:GITHUB_REF_NAME' is not a release tag like v1.2.3."
+            }
+            $arg = "--version $($Matches[1])"
+          }
+          "arg=$arg" >> $env:GITHUB_OUTPUT
+
+      - name: Inno Setup
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) {
+            choco install innosetup --no-progress -y
+            if ($LASTEXITCODE -ne 0) { throw 'Installing Inno Setup failed.' }
+          }
+          if (-not (Test-Path $iscc)) { throw "Inno Setup 6 is not at $iscc." }
+          "WINDOWSWITCHER_ISCC=$iscc" >> $env:GITHUB_ENV
+
+      - name: Build
+        shell: cmd
+        run: call build.cmd --setup ${{ steps.version.outputs.arg }}
+
+      - name: Keep the files
+        uses: actions/upload-artifact@v7
+        with:
+          name: WindowSwitcher
+          path: |
+            dist/WindowSwitcher.exe
+            dist/WindowSwitcher-*-setup.exe
+          if-no-files-found: error
+
+      - name: Publish the release
+        if: github.ref_type == 'tag'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          $files = @((Get-Item dist/WindowSwitcher-*-setup.exe).FullName, (Get-Item dist/WindowSwitcher.exe).FullName)
+          $existing = @(gh release list --limit 1000 --json tagName --jq '.[].tagName')
+          if ($LASTEXITCODE -ne 0) { throw 'Listing the releases failed.' }
+          if ($existing -contains $env:TAG) {
+            gh release upload $env:TAG @files --clobber
+          } else {
+            gh release create $env:TAG @files --verify-tag --title "WindowSwitcher $($env:TAG.Substring(1))" --generate-notes
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Publishing the release failed.' }
