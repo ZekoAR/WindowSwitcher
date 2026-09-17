@@ -10,10 +10,22 @@ internal sealed class WindowInfo
     public required string Title { get; init; }
     public required bool Minimized { get; init; }
 
-    /// <summary>The visible frame in screen pixels; for a minimized window, the rectangle it restores to.</summary>
+    /// <summary>
+    /// The visible frame in screen pixels; for a minimized window, the window rectangle it restores to
+    /// (screen pixels, invisible resize border included).
+    /// </summary>
     public required RECT Bounds { get; init; }
 
     public required uint ProcessId { get; init; }
+
+    /// <summary>The whole window rectangle, invisible resize borders included; empty for a minimized window.</summary>
+    public required RECT WindowRect { get; init; }
+
+    /// <summary>The monitor the window counts as being on.</summary>
+    public required nint Monitor { get; init; }
+
+    /// <summary>Front-to-back position among all top-level windows when the list was made (0 = front).</summary>
+    public required int ZOrder { get; init; }
 }
 
 /// <summary>One row of the popup: the windows of one program, in z-order.</summary>
@@ -25,8 +37,8 @@ internal sealed class ProgramGroup
 }
 
 /// <summary>
-/// The windows Alt-Tab would list, on one monitor, grouped by program. Groups come in the z-order of
-/// their topmost window, which is Alt-Tab's most-recently-used order.
+/// The windows Alt-Tab would list, on one monitor or on all of them, grouped by program. Groups come in
+/// the z-order of their topmost window (the popup re-sorts them with <see cref="WindowOrder"/>).
 /// </summary>
 internal static unsafe class WindowList
 {
@@ -37,7 +49,12 @@ internal static unsafe class WindowList
     const ushort VT_LPWSTR = 31;
     const int MinWindowSize = 32;
 
-    public static List<ProgramGroup> ForMonitor(nint monitor)
+    public static List<ProgramGroup> ForMonitor(nint monitor) => Collect(monitor);
+
+    public static List<ProgramGroup> AllMonitors() => Collect(0);
+
+    /// <param name="onlyMonitor">The monitor to list, or 0 for every monitor.</param>
+    static List<ProgramGroup> Collect(nint onlyMonitor)
     {
         var hwnds = new List<nint>();
         var handle = GCHandle.Alloc(hwnds);
@@ -50,30 +67,33 @@ internal static unsafe class WindowList
             handle.Free();
         }
 
-        MONITORINFO mi = new() { cbSize = (uint)sizeof(MONITORINFO) };
-        User32.GetMonitorInfoW(monitor, &mi);
-
         nint shell = User32.GetShellWindow();
         uint ownPid = (uint)Environment.ProcessId;
         var paths = new Dictionary<uint, string?>();
+        var monitorAreas = new Dictionary<nint, (RECT, RECT)>();
         var groups = new List<ProgramGroup>();
         var byKey = new Dictionary<string, ProgramGroup>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (nint hwnd in hwnds)
+        for (int z = 0; z < hwnds.Count; z++)
         {
+            nint hwnd = hwnds[z];
             if (hwnd == shell || !IsSwitchable(hwnd)) continue;
-            if (User32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST) != monitor) continue;
+            nint monitor = User32.MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            if (onlyMonitor != 0 && monitor != onlyMonitor) continue;
             User32.GetWindowThreadProcessId(hwnd, out uint pid);
             if (pid == ownPid) continue;
 
             bool minimized = User32.IsIconic(hwnd);
-            RECT bounds = minimized ? RestoredBounds(hwnd, mi.rcWork) : VisibleBounds(hwnd);
+            RECT bounds = minimized ? RestoredBounds(hwnd, MonitorAreas(monitor, monitorAreas)) : VisibleBounds(hwnd);
             // Windows this small are helpers, not something to switch to (seen: a 14x14 px WPF window
             // with a hidden owner, which passes the Alt-Tab test and gave an empty tile).
             if (bounds.Width < MinWindowSize || bounds.Height < MinWindowSize) continue;
 
             string title = User32.GetText(hwnd);
             if (title.Length == 0) continue;
+
+            RECT windowRect = default;
+            if (!minimized) User32.GetWindowRect(hwnd, out windowRect);
 
             var (key, exe) = ProgramOf(hwnd, pid, paths);
             if (!byKey.TryGetValue(key, out var group))
@@ -88,7 +108,10 @@ internal static unsafe class WindowList
                 Title = title,
                 Minimized = minimized,
                 Bounds = bounds,
+                WindowRect = windowRect,
                 ProcessId = pid,
+                Monitor = monitor,
+                ZOrder = z,
             });
         }
         return groups;
@@ -147,11 +170,26 @@ internal static unsafe class WindowList
         return r;
     }
 
-    static RECT RestoredBounds(nint hwnd, RECT workArea)
+    static (RECT Bounds, RECT Work) MonitorAreas(nint monitor, Dictionary<nint, (RECT, RECT)> cache)
+    {
+        if (!cache.TryGetValue(monitor, out var areas))
+        {
+            var (bounds, work, _) = Monitors.Describe(monitor);
+            cache[monitor] = areas = (bounds, work);
+        }
+        return areas;
+    }
+
+    /// <summary>The window rectangle a minimized window restores to, in screen coordinates.</summary>
+    static RECT RestoredBounds(nint hwnd, (RECT Bounds, RECT Work) monitor)
     {
         WINDOWPLACEMENT wp = new() { length = (uint)sizeof(WINDOWPLACEMENT) };
         if (!User32.GetWindowPlacement(hwnd, &wp)) return default;
-        return (wp.flags & WPF_RESTORETOMAXIMIZED) != 0 ? workArea : wp.rcNormalPosition;
+        if ((wp.flags & WPF_RESTORETOMAXIMIZED) != 0) return monitor.Work;
+        // rcNormalPosition is in workspace coordinates: offset by where the work area starts on its monitor.
+        int dx = monitor.Work.Left - monitor.Bounds.Left, dy = monitor.Work.Top - monitor.Bounds.Top;
+        RECT r = wp.rcNormalPosition;
+        return new RECT(r.Left + dx, r.Top + dy, r.Right + dx, r.Bottom + dy);
     }
 
     static (string Key, string? Exe) ProgramOf(nint hwnd, uint pid, Dictionary<uint, string?> paths)

@@ -90,6 +90,16 @@ internal struct MSLLHOOKSTRUCT
 }
 
 [StructLayout(LayoutKind.Sequential)]
+internal struct KBDLLHOOKSTRUCT
+{
+    public uint vkCode;
+    public uint scanCode;
+    public uint flags;
+    public uint time;
+    public nuint dwExtraInfo;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 internal struct MOUSEINPUT
 {
     public int dx;
@@ -169,6 +179,15 @@ internal struct DWM_THUMBNAIL_PROPERTIES
     public int fSourceClientAreaOnly;
 }
 
+[StructLayout(LayoutKind.Sequential, Pack = 1)] // dwmapi.h is wrapped in pshpack1.h
+internal struct DWM_BLURBEHIND
+{
+    public uint dwFlags;
+    public int fEnable;
+    public nint hRgnBlur;
+    public int fTransitionOnMaximized;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 internal unsafe struct NOTIFYICONDATAW
 {
@@ -187,6 +206,20 @@ internal unsafe struct NOTIFYICONDATAW
     public uint dwInfoFlags;
     public Guid guidItem;
     public nint hBalloonIcon;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+internal struct GUITHREADINFO
+{
+    public uint cbSize;
+    public uint flags;
+    public nint hwndActive;
+    public nint hwndFocus;
+    public nint hwndCapture;
+    public nint hwndMenuOwner;
+    public nint hwndMoveSize;
+    public nint hwndCaret;
+    public RECT rcCaret;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -234,6 +267,7 @@ internal static class Win32
     public const int COLOR_WINDOW = 5;
     public const int COLOR_WINDOWTEXT = 8;
     public const uint SWP_NOZORDER = 0x0004;
+    public const uint SWP_ASYNCWINDOWPOS = 0x4000;
     public const int LIM_SMALL = 0;
     public const int LIM_LARGE = 1;
     public const int SM_CXSMICON = 49;
@@ -253,6 +287,11 @@ internal static class Win32
     public const uint WS_BORDER = 0x00800000;
 
     public const uint WS_EX_TOPMOST = 0x00000008;
+    public const uint WS_EX_TRANSPARENT = 0x00000020;
+    public const uint WS_EX_LAYERED = 0x00080000;
+    public const uint WS_EX_NOREDIRECTIONBITMAP = 0x00200000;
+    public const uint LWA_ALPHA = 0x2;
+    public const uint GA_ROOTOWNER = 3;
     public const uint WS_EX_TOOLWINDOW = 0x00000080;
     public const uint WS_EX_APPWINDOW = 0x00040000;
     public const uint WS_EX_NOACTIVATE = 0x08000000;
@@ -297,6 +336,14 @@ internal static class Win32
     public const uint DI_NORMAL = 0x0003;
 
     public const int WH_MOUSE_LL = 14;
+    public const int WH_KEYBOARD_LL = 13;
+    public const uint LLKHF_UP = 0x80;
+    public const uint WM_NCHITTEST = 0x0084;
+    public const int HTTRANSPARENT = -1;
+    public const int BLACK_BRUSH = 4;
+    public const int SM_CXSIZEFRAME = 32;
+    public const int SM_CXPADDEDBORDER = 92;
+    public const uint WS_THICKFRAME = 0x00040000;
     public const int HC_ACTION = 0;
 
     public const int VK_SHIFT = 0x10;
@@ -367,7 +414,11 @@ internal static class Win32
     public const int DWMWA_CLOAKED = 14;
     public const int DWMWA_WINDOW_CORNER_PREFERENCE = 33;
     public const int DWMWA_BORDER_COLOR = 34;
+    public const int DWMWCP_DONOTROUND = 1;
     public const int DWMWCP_ROUND = 2;
+    public const uint DWMWA_COLOR_NONE = 0xFFFFFFFE;
+    public const uint DWM_BB_ENABLE = 0x1;
+    public const uint DWM_BB_BLURREGION = 0x2;
     public const uint DWM_TNP_RECTDESTINATION = 0x1;
     public const uint DWM_TNP_OPACITY = 0x4;
     public const uint DWM_TNP_VISIBLE = 0x8;
@@ -419,6 +470,18 @@ internal static unsafe partial class User32
     [LibraryImport(Dll)]
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool SetWindowPos(nint hwnd, nint insertAfter, int x, int y, int cx, int cy, uint flags);
+
+    [LibraryImport(Dll)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool ShowWindowAsync(nint hwnd, int cmd);
+
+    [LibraryImport(Dll)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetLayeredWindowAttributes(nint hwnd, uint colorKey, byte alpha, uint flags);
+
+    [LibraryImport(Dll)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool GetGUIThreadInfo(uint threadId, GUITHREADINFO* info);
 
     [LibraryImport(Dll)]
     public static partial int GetMessageW(MSG* msg, nint hwnd, uint min, uint max);
@@ -510,6 +573,10 @@ internal static unsafe partial class User32
 
     [LibraryImport(Dll)]
     public static partial nint MonitorFromWindow(nint hwnd, uint flags);
+
+    [LibraryImport(Dll)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool EnumDisplayMonitors(nint hdc, RECT* clip, delegate* unmanaged<nint, nint, RECT*, nint, int> callback, nint param);
 
     [LibraryImport(Dll)]
     [return: MarshalAs(UnmanagedType.Bool)]
@@ -637,6 +704,9 @@ internal static unsafe partial class User32
     public static partial int GetSystemMetrics(int index);
 
     [LibraryImport(Dll)]
+    public static partial int GetSystemMetricsForDpi(int index, uint dpi);
+
+    [LibraryImport(Dll)]
     public static partial nint GetSysColorBrush(int index);
 
     [LibraryImport(Dll)]
@@ -690,6 +760,9 @@ internal static unsafe partial class Gdi32
     public static partial nint CreateSolidBrush(uint color);
 
     [LibraryImport(Dll)]
+    public static partial nint CreateRectRgn(int left, int top, int right, int bottom);
+
+    [LibraryImport(Dll)]
     public static partial nint CreatePen(int style, int width, uint color);
 
     [LibraryImport(Dll)]
@@ -736,6 +809,9 @@ internal static unsafe partial class Dwm
     public static partial int DwmSetWindowAttribute(nint hwnd, int attr, void* value, int size);
 
     [LibraryImport(Dll)]
+    public static partial int DwmEnableBlurBehindWindow(nint hwnd, DWM_BLURBEHIND* blurBehind);
+
+    [LibraryImport(Dll)]
     public static partial int DwmRegisterThumbnail(nint destination, nint source, out nint thumbnail);
 
     [LibraryImport(Dll)]
@@ -771,6 +847,21 @@ internal static unsafe partial class Kernel32
 
     [LibraryImport(Dll, SetLastError = true, StringMarshalling = StringMarshalling.Utf16)]
     public static partial nint CreateMutexW(nint attributes, [MarshalAs(UnmanagedType.Bool)] bool initialOwner, string name);
+
+    public const uint CREATE_WAITABLE_TIMER_HIGH_RESOLUTION = 0x2;
+    public const uint TIMER_ALL_ACCESS = 0x1F0003;
+    public const uint INFINITE = 0xFFFFFFFF;
+
+    [LibraryImport(Dll)]
+    public static partial nint CreateWaitableTimerExW(nint attributes, char* name, uint flags, uint access);
+
+    [LibraryImport(Dll)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool SetWaitableTimer(nint timer, long* dueTime, int period, nint completion, nint arg,
+        [MarshalAs(UnmanagedType.Bool)] bool resume);
+
+    [LibraryImport(Dll)]
+    public static partial uint WaitForSingleObject(nint handle, uint milliseconds);
 }
 
 internal static unsafe partial class Shell32

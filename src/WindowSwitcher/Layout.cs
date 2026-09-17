@@ -5,24 +5,32 @@ namespace WindowSwitcher;
 /// <summary>Popup sizes in physical pixels for one display scale.</summary>
 internal readonly record struct Metrics(double Scale)
 {
-    int S(double v) => (int)Math.Round(v * Scale);
+    /// <summary>
+    /// Everything inside a tile is drawn at 75% of its first design (owner, 2026-09-17); the numbers
+    /// below are that first design. The gap, outline and hover border keep their own fixed sizes.
+    /// </summary>
+    const double TileScale = 0.75;
 
-    public int Padding => S(12);
-    public int GapX => S(8);
-    public int GapY => S(8);
-    public int Inset => S(6);
-    public int HeaderHeight => S(24);
-    public int HeaderGap => S(4);
-    public int HeaderIcon => S(16);
-    public int HeaderTextGap => S(6);
-    public int PlaceholderIcon => S(48);
-    public int MinImageWidth => S(72);
-    public int MinImageHeight => S(48);
+    int S(double v) => (int)Math.Round(v * Scale);
+    int T(double v) => S(v * TileScale);
+
+    public int Padding => 0; // no panel: the popup is exactly its tiles, on a transparent background
+    public int GapX => Math.Max(1, S(2));
+    public int GapY => Math.Max(1, S(2));
+    public int Inset => T(6);
+    public int HeaderHeight => T(24);
+    public int HeaderGap => T(4);
+    public int HeaderIcon => T(16);
+    public int HeaderTextGap => T(6);
+    public int PlaceholderIcon => T(48);
+    public int MinImageWidth => T(72);
+    public int MinImageHeight => T(48);
     public int PointerOffset => S(16);
     public int ScreenMargin => S(8);
-    public int Radius => S(8);
+    public int Radius => T(8);
     public int Border => Math.Max(2, S(2));
-    public int FontHeight => S(12);
+    public int Outline => Math.Max(1, S(1));
+    public int FontHeight => T(12);
 }
 
 internal sealed class TileLayout

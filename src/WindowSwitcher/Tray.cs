@@ -15,18 +15,18 @@ internal static unsafe class Tray
     static uint s_taskbarCreated;
     static string s_tip = "";
 
-    public static void Add(nint hwnd, HotkeySettings hotkey)
+    public static void Add(nint hwnd, Settings settings)
     {
         s_hwnd = hwnd;
         s_icon = Icons.AppIcon(LIM_SMALL);
         s_taskbarCreated = User32.RegisterWindowMessageW("TaskbarCreated");
-        s_tip = Tip(hotkey);
+        s_tip = Tip(settings);
         AddIcon();
     }
 
-    public static void Update(HotkeySettings hotkey)
+    public static void Update(Settings settings)
     {
-        s_tip = Tip(hotkey);
+        s_tip = Tip(settings);
         Notify(NIM_MODIFY);
     }
 
@@ -60,7 +60,9 @@ internal static unsafe class Tray
         return true;
     }
 
-    static string Tip(HotkeySettings hotkey) => $"WindowSwitcher - {hotkey} + right mouse button";
+    // At most 127 characters; the longest possible text is about 100.
+    static string Tip(Settings settings) =>
+        $"WindowSwitcher\n{settings.Hotkey} + right button: this monitor\n{settings.AllMonitorsHotkey} + right button: all monitors";
 
     static void AddIcon()
     {

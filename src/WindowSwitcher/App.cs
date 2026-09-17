@@ -14,6 +14,8 @@ internal static unsafe class App
     public const uint WM_GESTURE_MOVE = WM_APP + 2;
     public const uint WM_GESTURE_END = WM_APP + 3;
     public const uint WM_THUMBNAIL = WM_APP + 4;
+    public const uint WM_GESTURE_START_ALL = WM_APP + 5;
+    public const uint WM_GESTURE_CANCEL = WM_APP + 6;
     public const uint WM_TRAY = WM_APP + 10;
 
     const string MainClassName = "WindowSwitcher.Main";
@@ -51,10 +53,11 @@ internal static unsafe class App
 
         s_main = CreateMainWindow();
         s_popup = new Popup(Instance, s_main);
-        Tray.Add(s_main, Settings.Hotkey);
+        Flash.Init(Instance);
+        Tray.Add(s_main, Settings);
         try
         {
-            InputHook.Start(s_main, Settings.Hotkey);
+            InputHook.Start(s_main, Settings);
         }
         catch (Exception e)
         {
@@ -82,8 +85,8 @@ internal static unsafe class App
     public static void ApplySettings(Settings settings)
     {
         Settings = settings;
-        InputHook.SetHotkey(settings.Hotkey);
-        Tray.Update(settings.Hotkey);
+        InputHook.SetHotkeys(settings);
+        Tray.Update(settings);
     }
 
     /// <summary>The popup saw the right-button release itself, so the hook did not end the gesture.</summary>
@@ -118,10 +121,10 @@ internal static unsafe class App
         return hwnd;
     }
 
-    static void StartGesture(int x, int y)
+    static void StartGesture(int x, int y, bool allMonitors)
     {
         InputHook.SendMaskKey();
-        s_popup!.Open(x, y, Settings, s_capture!);
+        s_popup!.Open(x, y, allMonitors, Settings, s_capture!);
     }
 
     static void EndGesture(int x, int y)
@@ -129,7 +132,9 @@ internal static unsafe class App
         nint target = s_popup!.Close(x, y);
         if (target == 0) return;
         bool ok = Activation.Activate(target);
-        s_popup.GateLine($"activated {target:X} foreground {(ok ? 1 : 0)}");
+        Flash.Start(target, s_popup.Accent, Settings.SwitchFlash);
+        s_popup.HideOverlays();
+        s_popup.GateLine($"activated {target:X} foreground {(ok ? 1 : 0)} route {Activation.LastRoute} focus {(Activation.LastFocused ? 1 : 0)}");
         if (!ok) Log.Write($"could not bring window {target:X} to the foreground");
     }
 
@@ -141,11 +146,13 @@ internal static unsafe class App
             switch (msg)
             {
                 case WM_GESTURE_START:
-                    StartGesture((int)(uint)wParam, (int)lParam);
+                case WM_GESTURE_START_ALL:
+                    StartGesture((int)(uint)wParam, (int)lParam, allMonitors: msg == WM_GESTURE_START_ALL);
                     return 0;
                 case WM_GESTURE_MOVE:
                     InputHook.MoveHandled();
                     POINT p = InputHook.LastPoint;
+                    s_popup?.GateLine($"move {p.X} {p.Y}");
                     s_popup?.Hover(p.X, p.Y);
                     return 0;
                 case WM_GESTURE_END:
@@ -153,6 +160,9 @@ internal static unsafe class App
                     return 0;
                 case WM_THUMBNAIL:
                     s_popup?.DrainResults();
+                    return 0;
+                case WM_GESTURE_CANCEL:
+                    s_popup?.Cancel();
                     return 0;
                 case WM_CLOSE:
                     User32.DestroyWindow(hwnd);
