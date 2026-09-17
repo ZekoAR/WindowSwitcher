@@ -13,7 +13,7 @@ internal sealed class HotkeySettings
     [JsonIgnore]
     public bool IsEmpty => !Ctrl && !Shift && !Alt && !Win;
 
-    public static HotkeySettings DefaultThisMonitor() => new() { Ctrl = true, Shift = true };
+    public static HotkeySettings DefaultThisMonitor() => new() { Ctrl = true, Alt = true };
 
     public static HotkeySettings DefaultAllMonitors() => new() { Ctrl = true, Shift = true, Alt = true };
 
@@ -57,11 +57,14 @@ internal enum RowOrder
 /// <summary>User settings, stored as WindowSwitcher.json next to the exe.</summary>
 internal sealed class Settings
 {
-    public const int DefaultThumbnailHeight = 105; // 75% of the first design's 140 (owner, 2026-09-17)
+    // The defaults are the owner's own settings (2026-09-17).
+    public const int DefaultThumbnailHeight = 115;
     public const int MinThumbnailHeight = 60;
     public const int MaxThumbnailHeight = 400;
     public const int DefaultDimPercent = 30;
     public const int MaxDimPercent = 80;
+    public const SwitchFlash DefaultSwitchFlash = SwitchFlash.Window;
+    public const RowOrder DefaultRowOrder = RowOrder.Horizontal;
 
     /// <summary>The keys that show the windows on the pointer's monitor.</summary>
     public HotkeySettings Hotkey { get; set; } = HotkeySettings.DefaultThisMonitor();
@@ -75,9 +78,9 @@ internal sealed class Settings
     /// <summary>How much darker everything but the popup and the hovered window gets, 0 (off) to 80.</summary>
     public int DimPercent { get; set; } = DefaultDimPercent;
 
-    public SwitchFlash SwitchFlash { get; set; } = SwitchFlash.Border;
+    public SwitchFlash SwitchFlash { get; set; } = DefaultSwitchFlash;
 
-    public RowOrder RowOrder { get; set; } = RowOrder.Fixed;
+    public RowOrder RowOrder { get; set; } = DefaultRowOrder;
 
     public static string FilePath =>
         Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory, "WindowSwitcher.json");
@@ -103,8 +106,8 @@ internal sealed class Settings
             settings.AllMonitorsHotkey = HotkeySettings.DefaultAllMonitors();
         settings.ThumbnailHeight = Math.Clamp(settings.ThumbnailHeight, MinThumbnailHeight, MaxThumbnailHeight);
         settings.DimPercent = Math.Clamp(settings.DimPercent, 0, MaxDimPercent);
-        if (!Enum.IsDefined(settings.SwitchFlash)) settings.SwitchFlash = SwitchFlash.Border;
-        if (!Enum.IsDefined(settings.RowOrder)) settings.RowOrder = RowOrder.Fixed;
+        if (!Enum.IsDefined(settings.SwitchFlash)) settings.SwitchFlash = DefaultSwitchFlash;
+        if (!Enum.IsDefined(settings.RowOrder)) settings.RowOrder = DefaultRowOrder;
         return settings;
     }
 

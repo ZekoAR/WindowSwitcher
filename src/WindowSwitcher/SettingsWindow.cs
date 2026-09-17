@@ -258,10 +258,10 @@ internal static unsafe class SettingsWindow
             return;
         if (!ReadNumber(s_dim, 0, Settings.MaxDimPercent, "a dimming percentage", out int dim))
             return;
-        SwitchFlash flash = SwitchFlash.Border;
+        SwitchFlash flash = Settings.DefaultSwitchFlash;
         for (int i = 0; i < s_flash.Length; i++)
             if (IsChecked(s_flash[i])) flash = FlashOrder[i];
-        RowOrder rowOrder = RowOrder.Fixed;
+        RowOrder rowOrder = Settings.DefaultRowOrder;
         for (int i = 0; i < s_rowOrder.Length; i++)
             if (IsChecked(s_rowOrder[i])) rowOrder = RowOrders[i];
 
