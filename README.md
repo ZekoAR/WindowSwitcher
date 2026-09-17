@@ -61,30 +61,6 @@ You need the .NET 10 SDK and Visual Studio's C++ build tools ("Desktop developme
 
 - `build.cmd` builds `dist\WindowSwitcher.exe`, a single Native AOT exe.
 - `build.cmd --install` also installs that exe for you, the same way the installer does, and starts it.
-- `build.cmd --setup` also builds the installer. It needs [Inno Setup 6](https://jrsoftware.org/isdl.php),
-  or `WINDOWSWITCHER_ISCC` pointing to its `ISCC.exe`.
-- `--version X.Y.Z` sets the version, and `--help` lists every option.
-
-Window pictures come from Windows Graphics Capture (through CsWinRT). The UI is plain Win32, because
-WinForms and WPF don't support Native AOT.
-
-## Releasing
-
-Push a tag like `v1.2.0`, and GitHub Actions builds the exe and the installer and publishes them as a
-release. You can also run the Release workflow by hand: it only builds, and keeps the files as a workflow
-artifact.
-
-## Testing
-
-Run these with `powershell -NoProfile -ExecutionPolicy Bypass -File <script>`:
-
-- `tools\gate-popup.ps1` is the end-to-end test. **It takes over your mouse and keyboard for about
-  30 seconds**, and first closes a running WindowSwitcher.
-- `tools\gate-installer.ps1` installs, updates and uninstalls the built installer in a test folder.
-  `-WithTasks` also tests the startup and Start menu options. While it runs, it replaces your own
-  startup entry, and it puts it back at the end.
-
-`WindowSwitcher.exe --dump <folder>` saves what the popup would show, with how long each capture took.
 
 ## License
 
