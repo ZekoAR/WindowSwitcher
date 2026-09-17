@@ -1,16 +1,21 @@
 # Builds WindowSwitcher and its per-user installer with build.cmd --setup.
 #
-# - Pushing a tag vX.Y.Z (for example `git tag v1.2.0` then `git push origin v1.2.0`) stamps X.Y.Z on
-#   the exe and the installer and publishes a GitHub release with both. Running it again for the same
-#   tag replaces the release's files.
+# - Pushing a version tag, X.Y.Z or vX.Y.Z (for example `git tag 1.2.0` then `git push origin 1.2.0`),
+#   stamps X.Y.Z on the exe and the installer and publishes a GitHub release with both. Running it
+#   again for the same tag replaces the release's files.
 # - Running it by hand (Actions > Release > Run workflow) only builds, with the version in
 #   WindowSwitcher.csproj, and keeps the files as a workflow artifact.
+#
+# A tag push runs the workflow file as it is in the tagged commit, so a tag only releases if its commit
+# already has this trigger.
 
 name: Release
 
 on:
   push:
-    tags: ['v*']
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
   workflow_dispatch:
 
 permissions:
@@ -33,13 +38,16 @@ jobs:
         shell: pwsh
         run: |
           $arg = ''
+          $version = ''
           if ($env:GITHUB_REF_TYPE -eq 'tag') {
-            if ($env:GITHUB_REF_NAME -notmatch '^v(\d+\.\d+\.\d+)$') {
-              throw "Tag '$env:GITHUB_REF_NAME' is not a release tag like v1.2.3."
+            if ($env:GITHUB_REF_NAME -notmatch '^v?(\d+\.\d+\.\d+)$') {
+              throw "Tag '$env:GITHUB_REF_NAME' is not a release tag like 1.2.3 or v1.2.3."
             }
-            $arg = "--version $($Matches[1])"
+            $version = $Matches[1]
+            $arg = "--version $version"
           }
           "arg=$arg" >> $env:GITHUB_OUTPUT
+          "number=$version" >> $env:GITHUB_OUTPUT
 
       - name: Inno Setup
         shell: pwsh
@@ -71,6 +79,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
+          VERSION: ${{ steps.version.outputs.number }}
         run: |
           $files = @((Get-Item dist/WindowSwitcher-*-setup.exe).FullName, (Get-Item dist/WindowSwitcher.exe).FullName)
           $existing = @(gh release list --limit 1000 --json tagName --jq '.[].tagName')
@@ -78,6 +87,6 @@ jobs:
           if ($existing -contains $env:TAG) {
             gh release upload $env:TAG @files --clobber
           } else {
-            gh release create $env:TAG @files --verify-tag --title "WindowSwitcher $($env:TAG.Substring(1))" --generate-notes
+            gh release create $env:TAG @files --verify-tag --title "WindowSwitcher $env:VERSION" --generate-notes
           }
           if ($LASTEXITCODE -ne 0) { throw 'Publishing the release failed.' }
