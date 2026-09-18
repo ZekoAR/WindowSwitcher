@@ -5,8 +5,8 @@ using static WindowSwitcher.Native.Win32;
 namespace WindowSwitcher;
 
 /// <summary>
-/// Brings a window to the front (restoring it if minimized), makes sure it has the keyboard focus, and
-/// centers the pointer on it.
+/// Brings a window to the front (restoring it if minimized), makes sure it has the keyboard focus, and,
+/// when the settings ask for it, centers the pointer on it.
 /// </summary>
 internal static class Activation
 {
@@ -18,7 +18,8 @@ internal static class Activation
     /// <summary>Whether the last activated window's thread ended up with a focused window.</summary>
     public static bool LastFocused { get; private set; }
 
-    public static bool Activate(nint hwnd)
+    /// <param name="movePointer">Whether to put the pointer in the middle of the window (Settings.MovePointerToWindow).</param>
+    public static bool Activate(nint hwnd, bool movePointer)
     {
         LastRoute = "";
         LastFocused = false;
@@ -39,7 +40,7 @@ internal static class Activation
         }
         LastFocused = ok && EnsureFocus(hwnd);
 
-        CenterPointer(hwnd);
+        if (movePointer) CenterPointer(hwnd);
         return ok;
     }
 

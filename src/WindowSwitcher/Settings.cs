@@ -65,6 +65,7 @@ internal sealed class Settings
     public const int MaxDimPercent = 80;
     public const SwitchFlash DefaultSwitchFlash = SwitchFlash.Window;
     public const RowOrder DefaultRowOrder = RowOrder.Horizontal;
+    public const bool DefaultMovePointerToWindow = false;
 
     /// <summary>The keys that show the windows on the pointer's monitor.</summary>
     public HotkeySettings Hotkey { get; set; } = HotkeySettings.DefaultThisMonitor();
@@ -81,6 +82,9 @@ internal sealed class Settings
     public SwitchFlash SwitchFlash { get; set; } = DefaultSwitchFlash;
 
     public RowOrder RowOrder { get; set; } = DefaultRowOrder;
+
+    /// <summary>Whether the pointer jumps to the center of the window you switched to.</summary>
+    public bool MovePointerToWindow { get; set; } = DefaultMovePointerToWindow;
 
     public static string FilePath =>
         Path.Combine(Path.GetDirectoryName(Environment.ProcessPath) ?? AppContext.BaseDirectory, "WindowSwitcher.json");

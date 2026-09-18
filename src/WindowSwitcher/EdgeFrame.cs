@@ -154,6 +154,9 @@ internal sealed class FillWindow
 
     public void Show(bool visible) => User32.ShowWindow(_hwnd, visible ? SW_SHOWNOACTIVATE : SW_HIDE);
 
+    /// <summary>How see-through the fill is, 0 to 255; a window attribute, so it is safe from any thread.</summary>
+    public void SetAlpha(byte alpha) => User32.SetLayeredWindowAttributes(_hwnd, 0, alpha, LWA_ALPHA);
+
     public void ShowAsync(bool visible) => User32.ShowWindowAsync(_hwnd, visible ? SW_SHOWNOACTIVATE : SW_HIDE);
 
     /// <summary>Hides the window and shrinks it to 1x1, so its image buffer is released; safe from any thread.</summary>

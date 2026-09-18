@@ -131,7 +131,7 @@ internal static unsafe class App
     {
         nint target = s_popup!.Close(x, y);
         if (target == 0) return;
-        bool ok = Activation.Activate(target);
+        bool ok = Activation.Activate(target, Settings.MovePointerToWindow);
         Flash.Start(target, s_popup.Accent, Settings.SwitchFlash);
         s_popup.HideOverlays();
         s_popup.GateLine($"activated {target:X} foreground {(ok ? 1 : 0)} route {Activation.LastRoute} focus {(Activation.LastFocused ? 1 : 0)}");

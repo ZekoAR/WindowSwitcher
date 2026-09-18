@@ -6,8 +6,8 @@ namespace WindowSwitcher;
 
 /// <summary>
 /// The settings window: the two key combinations that start the gesture (this monitor, all monitors),
-/// the thumbnail height, how much the rest of the screen is dimmed, how a switch is marked, and how the
-/// rows are ordered.
+/// the thumbnail height, how much the rest of the screen is dimmed, how a switch is marked, how the
+/// rows are ordered, and whether the pointer follows the window you switched to.
 /// </summary>
 internal static unsafe class SettingsWindow
 {
@@ -16,19 +16,21 @@ internal static unsafe class SettingsWindow
     const uint Style = WS_CAPTION | WS_SYSMENU | WS_MINIMIZEBOX;
     const uint ExStyle = 0;
     const int ClientWidth = 400;
-    const int ClientHeight = 284;
+    const int ClientHeight = 314;
     const int ControlsX = 148;
     const uint DEFAULT_CHARSET = 1;
     const uint BS_AUTORADIOBUTTON = 0x9;
 
     // Control ids: this monitor 101-104, all monitors 111-114 (Ctrl, Shift, Alt, Win), height 105,
-    // dim 106, switch flash 121-123 (None, Border, Window), row order 131-132 (Fixed, Horizontal).
+    // dim 106, switch flash 121-123 (None, Border, Window), row order 131-132 (Fixed, Horizontal),
+    // move pointer 141.
     const int IdThisMonitor = 101;
     const int IdAllMonitors = 111;
     const int IdHeight = 105;
     const int IdDim = 106;
     const int IdFlash = 121;
     const int IdRowOrder = 131;
+    const int IdMovePointer = 141;
 
     static readonly SwitchFlash[] FlashOrder = [SwitchFlash.None, SwitchFlash.Border, SwitchFlash.Window];
     static readonly RowOrder[] RowOrders = [RowOrder.Fixed, RowOrder.Horizontal];
@@ -44,6 +46,7 @@ internal static unsafe class SettingsWindow
     static readonly nint[] s_flash = new nint[3];
     static nint s_rowOrderLabel;
     static readonly nint[] s_rowOrder = new nint[2];
+    static nint s_movePointerLabel, s_movePointer;
     static nint s_save, s_cancel;
 
     /// <summary>The open settings window, or 0. The message loop gives it dialog keyboard handling.</summary>
@@ -101,6 +104,9 @@ internal static unsafe class SettingsWindow
         string[] rowOrderNames = ["Fixed", "By horizontal position"];
         for (int i = 0; i < s_rowOrder.Length; i++)
             s_rowOrder[i] = Control("BUTTON", rowOrderNames[i], BS_AUTORADIOBUTTON | WS_TABSTOP | (i == 0 ? WS_GROUP : 0), IdRowOrder + i);
+
+        s_movePointerLabel = Control("STATIC", "Move pointer:", WS_GROUP, 0);
+        s_movePointer = Control("BUTTON", "To the window's center", BS_AUTOCHECKBOX | WS_TABSTOP | WS_GROUP, IdMovePointer);
 
         s_save = Control("BUTTON", "Save", BS_DEFPUSHBUTTON | WS_TABSTOP | WS_GROUP, IDOK);
         s_cancel = Control("BUTTON", "Cancel", BS_PUSHBUTTON | WS_TABSTOP, IDCANCEL);
@@ -193,6 +199,8 @@ internal static unsafe class SettingsWindow
         Label(s_rowOrderLabel, 198);
         Place(s_rowOrder[0], ControlsX, 198, 56, 22);
         Place(s_rowOrder[1], ControlsX + 56, 198, 184, 22);
+        Label(s_movePointerLabel, 228);
+        Place(s_movePointer, ControlsX, 228, ClientWidth - ControlsX - 16, 22);
         Place(s_save, ClientWidth - 16 - 88 - 8 - 88, ClientHeight - 16 - 28, 88, 28);
         Place(s_cancel, ClientWidth - 16 - 88, ClientHeight - 16 - 28, 88, 28);
     }
@@ -207,6 +215,7 @@ internal static unsafe class SettingsWindow
             SetChecked(s_flash[i], FlashOrder[i] == settings.SwitchFlash);
         for (int i = 0; i < s_rowOrder.Length; i++)
             SetChecked(s_rowOrder[i], RowOrders[i] == settings.RowOrder);
+        SetChecked(s_movePointer, settings.MovePointerToWindow);
     }
 
     static void LoadRow(nint[] keys, HotkeySettings hotkey)
@@ -273,6 +282,7 @@ internal static unsafe class SettingsWindow
             DimPercent = dim,
             SwitchFlash = flash,
             RowOrder = rowOrder,
+            MovePointerToWindow = IsChecked(s_movePointer),
         };
         try
         {

@@ -1,5 +1,7 @@
 # WindowSwitcher
 
+![The popup over a dimmed desktop, with the settings window open](images/screeenshot1.png)
+
 Switch windows with the mouse. Hold **Ctrl+Alt** and press the **right mouse button** to see a thumbnail
 of every window on that monitor. Move onto one and let go to switch to it.
 
@@ -14,8 +16,8 @@ Hold **Ctrl+Shift+Alt** instead to see the windows on all your monitors.
 - **Hover to preview.** The window you point at shows in its real place, and the rest of the screen
   dims. The real window stays as it was.
 - **Let go to switch.** The window comes to the front (restored if it was minimized), gets the keyboard,
-  and flashes briefly, and the pointer jumps to it. To cancel, let go away from the thumbnails or press
-  **Esc**.
+  and flashes briefly. The pointer can follow it too, if you turn that on. To cancel, let go away from
+  the thumbnails or press **Esc**.
 - **Stays out of the way.** The right-click never reaches the window under the pointer, and windows are
   captured only while the popup is open. Minimized windows show the last picture Windows kept of them.
 
@@ -43,6 +45,7 @@ Settings, or right-click it to exit.
 | Dim everything else | 30% | 0 (off) to 80% |
 | Flash on switch | Whole window | Whole window, border or none |
 | Row order | By horizontal position | Or fixed, where rows keep the place they first got |
+| Move pointer | Off | On, the pointer jumps to the center of the window you switched to |
 
 The keys must match exactly: with the defaults, Ctrl+Shift+right-click is still a normal right-click.
 Changes apply at once and are saved to `WindowSwitcher.json` next to the exe.
