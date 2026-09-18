@@ -9,3 +9,10 @@ dist/
 
 # Agent scratch output - see AGENTS.md, "Scratch output lives in one ignored folder".
 .gate/
+
+# Agent process/planning files - kept on disk for the agent, hidden from the repo.
+/AGENTS.md
+/CLAUDE.md
+/plans/
+/tools/gate-popup.ps1
+/tools/gate-installer.ps1
